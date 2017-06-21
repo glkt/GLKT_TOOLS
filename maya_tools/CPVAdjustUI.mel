@@ -1,0 +1,260 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc clearData( ) {
+    
+    global string $vertList[];
+    global vector $vertcolor[];
+    
+    $vertList = {};
+    $vertcolor = {};
+    
+}
+
+// 1. store
+
+global proc storeVertex( ) {
+    
+    global string $vertList[];
+    global vector $vertcolor[];
+    
+    int $k = 0;
+    
+    string $sel[] = `ls -selection`;
+    
+    for($obj in $sel){
+    
+        int $vertexCount[] = `polyEvaluate -v $obj`;
+        
+        for ($i = 0;  $i < $vertexCount[0]; $i ++){
+                
+            select -r ($obj+".vtx["+$i+"]") ;
+                    
+            string $vertexFaces[] = `polyListComponentConversion -fv -tvf ($obj+".vtx["+$i+"]")`;
+                    
+            $vertexFaces = `ls -flatten $vertexFaces`;
+            
+            for($vertex in $vertexFaces){
+                
+                $vertList[$k] = $vertex;
+                
+                select $vertex;
+            
+                float $color[] = `polyColorPerVertex -q -rgb`;  
+                
+                $vertcolor[$k] = <<$color[0],$color[1],$color[2]>>;
+                
+                $k ++;
+                
+           }
+       }
+    }
+}
+
+// 2- color correct
+
+global proc correctColor( ) {
+    
+    global string $vertList[];
+    global vector $vertcolor[];
+    
+    global string $slider1;
+    global string $slider2;
+    global string $slider3;
+    global string $slider4;
+    global string $slider5;
+    global string $slider6;
+    global string $slider7;
+    
+    //---------------------------
+
+    // basic correct
+    float $contrast = `floatSliderGrp -q -v $slider1`;
+    float $gamma = `floatSliderGrp -q -v $slider2`;
+    float $gain = `floatSliderGrp -q -v $slider3`;
+    float $offset = `floatSliderGrp -q -v $slider4`;
+    // negative effect
+    int $negative = 0;
+    // HSV correct
+    float $saturation = `floatSliderGrp -q -v $slider5`;
+    float $hueShift = `floatSliderGrp -q -v $slider6`;
+    float $valueMultiplier = `floatSliderGrp -q -v $slider7`;
+    
+    $hueShift += 0.5;
+    
+    //---------------------------
+    
+    $k = 0;
+    
+    for ($vertex in $vertList){
+            
+        vector $currentColor = $vertcolor[$k];
+            
+        float $newColor[] = { ($currentColor.x) , ($currentColor.y) , ($currentColor.z) };
+        
+        for ( $j = 0; $j < 3; $j ++){
+                    
+            if ($negative){
+                $newColor[$j] = 1 - $newColor[$j];
+            }
+            
+            $newColor[$j] = `pow $newColor[$j] $gamma`;
+            
+            $newColor[$j] *= $gain;
+            
+            $newColor[$j] += $offset;
+            
+            float $constrastOffset = $newColor[$j] - (sin(($newColor[$j]-0.5)*3.1415)+1)/2;
+            
+            $newColor[$j] -= $constrastOffset * $contrast;
+            
+        }
+        
+        vector $hsvColor = `rgb_to_hsv <<$newColor[0],$newColor[1],$newColor[2]>>`;
+        
+        $hsvColor = << ( ($hsvColor.x + $hueShift)%1 ) , ($hsvColor.y * $saturation), ($hsvColor.z * $valueMultiplier) >> ;
+                    
+        vector $rgbColor = `hsv_to_rgb $hsvColor`;
+                    
+        $newColor = {$rgbColor.x , $rgbColor.y, $rgbColor.z}; 
+        
+        select $vertex;
+               
+        polyColorPerVertex -rgb $newColor[0] $newColor[1] $newColor[2] ;
+        
+        $k ++;
+        
+    }
+}
+
+// RESET all
+
+global proc resetAll( ) { 
+    
+    resetColor;
+    resetAllSlider;
+    
+}
+
+// reset color
+
+global proc resetColor( ) {
+    
+    global string $vertList[];
+    global vector $vertcolor[];
+    
+    $k = 0;
+    
+    for ($vertex in $vertList){
+            
+        vector $currentColor = $vertcolor[$k];
+        
+        select $vertex;
+               
+        polyColorPerVertex -rgb ($currentColor.x) ($currentColor.y) ($currentColor.z) ;
+        
+        $k ++;
+        
+    }
+    
+}
+
+// reset all slider
+
+global proc resetAllSlider() {
+    global string $slider1;
+    global string $slider2;
+    global string $slider3;
+    global string $slider4;
+    global string $slider5;
+    global string $slider6;
+    global string $slider7;
+    resetSlider($slider1,0);
+    resetSlider($slider2,1);
+    resetSlider($slider3,1);
+    resetSlider($slider4,0);
+    resetSlider($slider5,1);
+    resetSlider($slider6,0.5);
+    resetSlider($slider7,1);
+}
+      
+global proc resetSlider(string $sliderName, float $default ) {
+    floatSliderGrp -edit -v $default $sliderName;
+    print( "try to change slider  : "+$sliderName+" to default value of : "+$default);
+}
+
+global proc CPVAdjustUI( ) {
+
+if (`window -exists CPVAdjustWindow`) deleteUI CPVAdjustWindow;
+window -title "panZoomCam" -widthHeight 500 350 CPVAdjustWindow;
+if (`windowPref -exists CPVAdjustWindow`) windowPref -remove CPVAdjustWindow;
+    
+    columnLayout ;
+    
+    rowLayout -numberOfColumns 3 -width 500;
+        button -bgc 0.0 0.5 0.5 -label "select objects" -width 165 -command "storeVertex";
+        button -bgc 0.0 0.5 0.5 -label "RESET objects" -width 165 -command "resetAll";
+        button -bgc 0.0 0.5 0.5 -label "clear Objects" -width 160 -command "clearData";
+	setParent ..;    
+    
+    // contrast
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider1;
+        $slider1 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "contrast : " -min -1 -max 1 -v 0 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider1,0)");
+    setParent ..;
+    
+    // gamma
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider2;
+        $slider2 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "gamma : " -min 0 -max 2 -v 1 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider2,1)");
+    setParent ..;
+    
+    //gain
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider3;
+        $slider3 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "gain : " -min 0 -max 2 -v 1 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider3,1)");
+    setParent ..;
+    
+    // offset
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider4;
+        $slider4 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "offset : " -min -1 -max 1 -v 0 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider4,0)");
+    setParent ..;
+    
+    // saturation
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider5;
+        $slider5 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "sat : " -min 0 -max 2 -v 1 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider5,1)");
+    setParent ..;
+    
+    // hue shift
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider6;
+        $slider6 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "hueRot : " -min 0 -max 1 -v 0.5 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider6,0.5)");
+    setParent ..;
+    
+    // value
+    rowLayout -numberOfColumns 2 -width 495 -height 40;           
+        global string $slider7;
+        $slider7 = `floatSliderGrp -cw3 50 40 100 -field true -pre 2 -l "value : " -min 0 -max 2 -v 1 -width 470 -cc "correctColor"`;
+        button -bgc 0.5 0.5 0.5 -label "R" -width 20 -command ("resetSlider($slider7,1)");
+    setParent ..;
+    
+    rowLayout -numberOfColumns 2 -width 500;
+        button -label "hide" -width 245 -command "resetColor";
+        button -label "show" -width 245 -command "correctColor";
+	setParent ..;    
+
+
+showWindow CPVAdjustWindow;
+};
+
+CPVAdjustUI;
+
+      

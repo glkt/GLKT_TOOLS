@@ -1,0 +1,26 @@
+# GLKT / Benjamin Vedrenne
+# MIT License
+
+# This script create a write node under each selected read nodes, and increment file folders
+
+osdir = nuke.getClipname( "Where to save png sequence?" )
+folder = 0
+sequenceName = "###.png"
+    
+for oReadNode in nuke.selectedNodes():
+
+    dirPath = osdir+str(folder)+"/"
+
+    try:
+        os.makedirs (dirPath)
+    except OSError:
+        pass
+
+    oReadNode['selected'].setValue(True)
+    Write = nuke.createNode ("Write")
+    Write.knob('file').setValue(dirPath+sequenceName) 
+    Write.knob('file_type').setValue('png')
+    Write.knob('first').setValue(0)
+    Write.knob('last').setValue(50)
+    folder = folder +1
+

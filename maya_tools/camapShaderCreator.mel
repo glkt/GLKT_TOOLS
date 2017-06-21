@@ -1,0 +1,199 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc camapShaderCreate (){
+
+    // get values
+    string $buffer[];
+    string $selection[] = `ls -sl`;
+    string $path = `textField -query -text "filePath"`;
+    string $camera = `text -query -label "camText"`;
+        
+    if($camera == ""){
+        text -edit -label "please set a camera" -bgc 1.0 0.5 0.3 feedBackText;
+    }
+    if($path == ""){
+        text -edit -label "please choose a file to project" -bgc 1.0 0.5 0.3 feedBackText;
+    }
+    if($selection[0] == ""){
+        text -edit -label "please select an object to project on" -bgc 1.0 0.5 0.3 feedBackText;
+    }
+    
+    string $cameraShape[] = `listRelatives -shapes $camera`;
+    
+    
+    tokenize($path, ".", $buffer);
+    string $alphaPath = ($buffer[0]+"_alpha."+$buffer[1]);
+    
+    int $size = tokenize($path, "\/.", $buffer);
+    string $Name = $buffer[$size-2];
+    
+    if(`objExists $Name` == 1){
+        select -r $selection;
+        hyperShade -assign $Name;
+        text -edit -label "shader already exist, assigned to object" -bgc 1.0 0.8 0.5 feedBackText;
+    }else{
+        
+        print ("project image :  "+$path+"  on object :  "+$selection[0]+"  using cam :  "+$camera);    
+    
+        $shaderNode = `shadingNode -asShader lambert -name $Name`;
+        $projNode = `shadingNode -asTexture projection -name ($Name+"_ColorProjection")`;
+        $fileNode = `shadingNode -asTexture file -name ($Name+"_ColorFile")`;
+        $place3DNode = `shadingNode -asUtility place3dTexture -name ($Name+"_ColorPlace2DText")`;
+        $place2DNode = `shadingNode -asUtility place2dTexture -name ($Name+"_ColorPlace2DText")`;
+        
+        setAttr ($shaderNode+".ambientColor") -type double3 1 1 1 ;
+        setAttr ($shaderNode+".diffuse") 0;
+        
+        connectAttr ($place3DNode+".wim[0]") ($projNode+".pm");
+        connectAttr ($fileNode+".outColor") ($projNode+".image");
+        connectAttr -force ($projNode+".outColor") ($shaderNode+".color");
+        setAttr ($projNode+".projType") 8;
+        setAttr ($projNode+".fitFill") 1;
+        connectAttr -f ($cameraShape[0]+".message") ($projNode+".linkedCamera");
+        setAttr -type "string" ($fileNode+".fileTextureName") $path;
+        connectAttr -force ($place2DNode+".outUV") ($fileNode+".uvCoord");
+        connectAttr -force ($place2DNode+".outUvFilterSize") ($fileNode+".uvFilterSize");
+        connectAttr -force ($place2DNode+".coverage") ($fileNode+".coverage");
+        connectAttr -force ($place2DNode+".translateFrame") ($fileNode+".translateFrame");
+        connectAttr -force ($place2DNode+".rotateFrame") ($fileNode+".rotateFrame");
+        connectAttr -force ($place2DNode+".mirrorU") ($fileNode+".mirrorU");
+        connectAttr -force ($place2DNode+".mirrorV") ($fileNode+".mirrorV");
+        connectAttr -force ($place2DNode+".stagger") ($fileNode+".stagger");
+        connectAttr -force ($place2DNode+".wrapU") ($fileNode+".wrapU");
+        connectAttr -force ($place2DNode+".wrapV") ($fileNode+".wrapV");
+        connectAttr -force ($place2DNode+".repeatUV") ($fileNode+".repeatUV");
+        connectAttr -force ($place2DNode+".vertexUvOne") ($fileNode+".vertexUvOne");
+        connectAttr -force ($place2DNode+".vertexUvTwo") ($fileNode+".vertexUvTwo");
+        connectAttr -force ($place2DNode+".vertexUvThree") ($fileNode+".vertexUvThree");
+        connectAttr -force ($place2DNode+".vertexCameraOne") ($fileNode+".vertexCameraOne");
+        connectAttr -force ($place2DNode+".noiseUV") ($fileNode+".noiseUV");
+        connectAttr -force ($place2DNode+".offset") ($fileNode+".offset");
+        connectAttr -force ($place2DNode+".rotateUV") ($fileNode+".rotateUV");
+        
+        if (`checkBox -query -value lookForAlphaCheckbox`){
+        
+            if (`filetest -r $alphaPath`){
+                
+                $projNodeAlpha = `shadingNode -asTexture projection -name ($Name+"_AlphaProjection")`;
+                $fileNodeAlpha = `shadingNode -asTexture file -name ($Name+"_AlphaFile")`;
+                $place3DNodeAlpha = `shadingNode -asUtility place3dTexture -name ($Name+"_AlphaPlace3DText")`;
+                $place2DNodeAlpha = `shadingNode -asUtility place2dTexture -name ($Name+"_AlphaPlace2DText")`;
+                
+                connectAttr ($place3DNodeAlpha+".wim[0]") ($projNodeAlpha+".pm");
+                connectAttr ($fileNodeAlpha+".outColor") ($projNodeAlpha+".image");
+                connectAttr -force ($projNodeAlpha+".outColor") ($shaderNode+".transparency");
+                setAttr ($projNodeAlpha+".projType") 8;  
+                setAttr ($projNodeAlpha+".fitFill") 1;         
+                if (`checkBox -query -value invertAlphaCheckbox`){
+                    setAttr ($fileNodeAlpha+".invert") 1;
+                }
+                connectAttr -f ($cameraShape[0]+".message") ($projNodeAlpha+".linkedCamera");
+                setAttr -type "string" ($fileNodeAlpha+".fileTextureName") $alphaPath;
+                connectAttr -force ($place2DNodeAlpha+".outUV") ($fileNodeAlpha+".uvCoord");
+                connectAttr -force ($place2DNodeAlpha+".outUvFilterSize") ($fileNodeAlpha+".uvFilterSize");
+                connectAttr -force ($place2DNodeAlpha+".coverage") ($fileNodeAlpha+".coverage");
+                connectAttr -force ($place2DNodeAlpha+".translateFrame") ($fileNodeAlpha+".translateFrame");
+                connectAttr -force ($place2DNodeAlpha+".rotateFrame") ($fileNodeAlpha+".rotateFrame");
+                connectAttr -force ($place2DNodeAlpha+".mirrorU") ($fileNodeAlpha+".mirrorU");
+                connectAttr -force ($place2DNodeAlpha+".mirrorV") ($fileNodeAlpha+".mirrorV");
+                connectAttr -force ($place2DNodeAlpha+".stagger") ($fileNodeAlpha+".stagger");
+                connectAttr -force ($place2DNodeAlpha+".wrapU") ($fileNodeAlpha+".wrapU");
+                connectAttr -force ($place2DNodeAlpha+".wrapV") ($fileNodeAlpha+".wrapV");
+                connectAttr -force ($place2DNodeAlpha+".repeatUV") ($fileNodeAlpha+".repeatUV");
+                connectAttr -force ($place2DNodeAlpha+".vertexUvOne") ($fileNodeAlpha+".vertexUvOne");
+                connectAttr -force ($place2DNodeAlpha+".vertexUvTwo") ($fileNodeAlpha+".vertexUvTwo");
+                connectAttr -force ($place2DNodeAlpha+".vertexUvThree") ($fileNodeAlpha+".vertexUvThree");
+                connectAttr -force ($place2DNodeAlpha+".vertexCameraOne") ($fileNodeAlpha+".vertexCameraOne");
+                connectAttr -force ($place2DNodeAlpha+".noiseUV") ($fileNodeAlpha+".noiseUV");
+                connectAttr -force ($place2DNodeAlpha+".offset") ($fileNodeAlpha+".offset");
+                connectAttr -force ($place2DNodeAlpha+".rotateUV") ($fileNodeAlpha+".rotateUV");
+                
+                select -r $selection;
+                hyperShade -assign $shaderNode;
+                text -edit -label "done :)" -bgc 0.5 1.0 0.5 feedBackText;
+                
+            }else{
+                text -edit -label "No alpha file found !" -bgc 1.0 0.5 0.3 feedBackText;
+                delete $shaderNode;
+                delete $projNode;
+                delete $fileNode;
+                delete $place3DNode;
+                delete $place2DNode;
+            }
+        }else{
+        
+        select -r $selection;
+        hyperShade -assign $shaderNode;
+        text -edit -label "done :)" -bgc 0.5 1.0 0.5 feedBackText;
+        
+        }
+    }
+}
+
+
+global proc chooseFile (){
+	string $chosenFiles[] = `fileDialog2 -okc "Select file" -fm 1`;
+	textField -edit -text $chosenFiles[0] "filePath";
+}
+
+global proc chooseCam (){
+	string $selection[] = `ls -sl -type transform`;
+	if($selection[0] != ""){
+	    string $cameraShape[] = `listRelatives -shapes -type camera $selection[0]`;
+        if($cameraShape[0] != ""){
+        	    text -edit -label $selection[0] -bgc 0.5 1.0 0.5 "camText";
+        }
+    }
+}
+
+// MWindow procedure
+
+global proc CamapShaderCreatorUI( ) {
+    
+// Window stuff         
+
+if (`window -exists CamapShaderWindow`) deleteUI CamapShaderWindow;
+window -title "CamapShaderCreator" -widthHeight 200 350 CamapShaderWindow;
+if (`windowPref -exists CamapShaderWindow`) windowPref -remove CamapShaderWindow;
+    columnLayout -columnAttach "both" 5 -rowSpacing 8 -columnWidth 200;
+    
+    text -label "";
+    text -label "Fast Camap !" -height 50 -bgc 0.8 0.8 0.8;
+    text -label "";
+    
+    separator;
+    
+    text -label "projection camera :" -align left;
+    rowLayout -numberOfColumns 2 -width 200;	
+    	text -label "none" -align left -bgc 0.5 0.5 0.5 -width 120 -height 15 camText;
+    	button -label "set selected" -command "chooseCam" -height 17;
+	setParent ..;
+    
+    separator;
+    
+    text -label "image file to project :" -align left;
+    rowLayout -numberOfColumns 2 -width 200;	
+    	textField -w 165 -tx "" filePath;
+    	iconTextButton -style "iconAndTextVertical" -align "right" -command "chooseFile" -image1 "fileOpen.xpm" -height 20;
+	setParent ..;
+	rowLayout -numberOfColumns 2 -width 200;	
+    	checkBox -label "look for alpha" lookForAlphaCheckbox;
+    	checkBox -label "invert alpha" invertAlphaCheckbox;
+	setParent ..;
+	
+    
+    separator;
+    
+    text -label "select object, then" -align left;
+    button -bgc 0.1 1.0 0.8 -label "create camap shader" -command "camapShaderCreate";
+    
+    text -label "" -align left;
+    text -label "" -align left feedBackText;
+
+showWindow CamapShaderWindow;
+};
+
+// Run the main procedure
+     
+CamapShaderCreatorUI;

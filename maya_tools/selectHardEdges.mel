@@ -1,0 +1,20 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc selHardEdges() 
+{
+    string $selObj[] = `ls -sl`;
+    int $edgeNbf[] =`polyEvaluate -e`;
+    select -r ($selObj[0]+".e[0:"+$edgeNbf[0]+"]");
+    string $selEdges[] = `ls -sl -fl`; 
+    select -cl; 
+    for ($edge in $selEdges) 
+    { 
+        string $edgeInfo[] = `polyInfo -ev $edge`; 
+        if (`gmatch $edgeInfo[0] "*Hard*"`) 
+        { 
+            select -add $edge; 
+        } 
+    } 
+} 
+selHardEdges();

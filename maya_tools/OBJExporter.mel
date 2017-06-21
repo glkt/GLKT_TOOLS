@@ -1,0 +1,182 @@
+///////////////////
+// OBJ exporter  // V2
+///////////////////
+
+// benjamin vedrenne @ supinfocom 2013 :)  <3
+
+// Export procedure
+
+global proc Exporter( ) {
+
+// Get all variable from user
+    
+    global string $smoothCheckBox;
+    int $smooth = `checkBox -q -value $smoothCheckBox`;
+    
+    global string $smoothSubdivSlider;
+    int $subdiv =  `intSliderGrp -q -value $smoothSubdivSlider`;
+         
+    global string $noSmooth;
+    int $dontSmoothUv = `radioButton -q -select $noSmooth`;
+           
+    global string $on;
+    int $smoothUv = `radioButton -q -select $on`;
+            
+    global string $pathTextField;
+    string $path = `textField -q -tx $pathTextField`;
+    $path += "/";
+    
+    global string $prefixTextField;
+    string $prefix = `textField -q -tx $prefixTextField`;
+    
+    global string $suffixTextField;
+    string $suffix = `textField -q -tx $suffixTextField`;
+   
+// List all selections and keep only shapes into a new list
+
+string $selection[] = `ls -sl`;
+string $shapes[] = `listRelatives -children -shapes -type mesh $selection`;
+ 
+// Export loop
+
+if ($path != "/"){
+ 
+    for ($s in $shapes)
+    {    
+    
+        // Duplicate active object  and select it
+        
+        $object = `duplicate $s`;    
+        select -r $object;
+        
+        // Smooth the mesh if needed
+        
+        if ($smooth == 1)
+        polySmooth  -mth 0 -dv $subdiv -bnr 1 -c 1 -kb 0 -ksb 0 -khe 0 -kt 1 -kmb $smoothUv -suv (1-$dontSmoothUv) -peh 0 -sl 1 -dpe 1 -ps 0.1 -ro 1 -ch 1 $object;
+        
+        // Rename the object name to shorten it
+        
+        $s = substitute ("Shape", $s, "");
+            
+        // Export the result to the desired path
+         
+        file -force -options "groups=0;ptgroups=0;materials=0;smoothing=0;normals=1" -typ "OBJexport" -pr -es ($path + $prefix + $s + $suffix + ".obj");
+        
+        // Delete temporary object
+        
+        delete $object;
+        
+        // Print the result
+        
+        print ($s + " exported succesfully !\n");
+    };
+
+    // Finished :)
+    
+    print (">>>> Everything is exported <<<<");
+    
+}else{
+    error ("please choose an output directory");
+}
+
+};
+
+// choose folder via explorer
+
+global proc chooseFolder (){
+   
+   	string $chosenFolder[] = `fileDialog2 -okc "Select folder" -fm 3`;
+	
+	global string $pathTextField;
+	textField -edit -text $chosenFolder[0] $pathTextField;
+	
+}
+
+
+// MWindow procedure
+
+global proc OBJExporterUI( ) {
+    
+// Window stuff         
+
+if (`window -exists OBJExporterwindow`) deleteUI OBJExporterwindow;
+window -title "OBJExporter2" -widthHeight 200 350 OBJExporterwindow;
+if (`windowPref -exists OBJExporterwindow`) windowPref -remove OBJExporterwindow;
+    columnLayout -columnAttach "both" 5 -rowSpacing 8 -columnWidth 200;
+    
+    text -label "Export selected objects to OBJs";
+    
+    separator-style "in" ;   
+        
+    global string $smoothCheckBox;
+    $smoothCheckBox = `checkBox 
+                         -label "Smooth meshes"
+                         -onc "columnLayout -edit -enable true smoothOptions"
+                         -ofc "columnLayout -edit -enable false smoothOptions"`;
+    
+    columnLayout -enable false smoothOptions;
+    
+        rowLayout -numberOfColumns 2 -width 200;	
+            text -label "Smooth subdiv :" -align "left";
+            global string $smoothSubdivSlider;    
+            $smoothSubdivSlider = `intSliderGrp -min 1 -max 5 -value 2 -step 0  -field true -cw2 40 63`;
+        setParent ..;
+        
+        
+        rowColumnLayout -width 200 -numberOfColumns 2;
+            
+            columnLayout;
+            text -label "Smooth UVs :" -align "left" -height 18;
+            setParent ..;
+                
+            columnLayout;
+            global string $smoothUvRadio;
+            $smoothUvRadio = `radioCollection`;
+            global string $noSmooth;
+            $noSmooth  = `radioButton -label "Don't smooth UVs"`;
+            global string $on;
+            $on  = `radioButton -label "Keep UVs border"`;
+            global string $off;
+            $off = `radioButton -label "Smooth all"`;
+            radioCollection -edit -select $on $smoothUvRadio;
+            setParent ..;
+            
+        setParent ..;
+        
+    setParent ..;
+    
+    separator -style "in" ;    
+    
+    text -label "Output directory :" -align "left";
+    
+    rowLayout -numberOfColumns 2 -width 200;	
+    	global string $pathTextField;
+        $pathTextField = `textField -width 165`;
+    	iconTextButton -style "iconAndTextVertical" -align "right" -command "chooseFolder" -image1 "fileOpen.xpm" -height 20;
+	setParent ..;
+                
+    separator-style "in" ;
+      
+    rowLayout -numberOfColumns 2 -width 200;	
+    	text -label "Objects prefix :" -align "left";
+        global string $prefixTextField;
+        $prefixTextField = `textField`;
+    setParent ..;
+    
+    rowLayout -numberOfColumns 2 -width 200;	
+        text -label "Objects suffix :" -align "left";
+        global string $suffixTextField;
+        $suffixTextField = `textField -width 111`;
+    setParent ..;
+    
+    separator-style "in" ;
+    
+    text -label "" -height 1;     
+    button -bgc 0.0 0.5 0.5 -label "EXPORT !" -command "Exporter" -height 30;
+
+showWindow OBJExporterwindow;
+};
+
+// Run the main procedure
+     
+OBJExporterUI;

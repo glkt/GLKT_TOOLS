@@ -1,0 +1,43 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc connectRolls( ) {
+    
+    string $selected[] = `ls -sl -type joint`;
+    
+    string $joint = $selected[0] ;
+    string $Rolljoint = $selected[1] ;
+    
+    string $multiplyNode = `shadingNode -asUtility multiplyDivide -name ("multiplyRoll_"+$joint)`;
+    
+    connectAttr -f ($joint+".rotate") ($multiplyNode+".input1");
+    connectAttr -f ($multiplyNode+".output") ($Rolljoint+".rotate");
+    
+    setAttr ($multiplyNode+".input2X") 0.5;
+    setAttr ($multiplyNode+".input2Y") 0.5;
+    setAttr ($multiplyNode+".input2Z") 0.5;
+}
+
+
+////////////////////////////:
+
+global proc connectRollsUI( ) {
+        
+    if (`window -exists connectRollsWindow`) deleteUI connectRollsWindow;
+    window -title "ConnectRolls" -widthHeight 200 150 connectRollsWindow;
+    if (`windowPref -exists connectRollsWindow`) windowPref -remove connectRollsWindow;
+        columnLayout -columnAttach "both" 5 -rowSpacing 8 -columnWidth 200;
+        
+        text -label "";
+        text -label "select one joint, shift select its roll joint";
+        text -label "";
+                
+        separator;
+        
+        text -label "";     
+        button -bgc 0.1 1.0 0.8 -label "CONNECT !" -command "connectRolls";
+        
+    showWindow connectRollsWindow;
+};
+
+connectRollsUI;

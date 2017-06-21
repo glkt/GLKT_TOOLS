@@ -1,0 +1,124 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc createController( ) {
+    
+    global string $toRemoveField;
+    string $toRemove = `textField -q -tx $toRemoveField`;
+    global string $prefixField;
+    string $prefix = `textField -q -tx $prefixField`;   
+    global string $suffixField;
+    string $suffix = `textField -q -tx $suffixField`;   
+    
+    global string $sizeSlider;
+    float $radius =  `floatSliderGrp -q -value $sizeSlider`;
+    
+    global string $colorPalette;
+    int $colorIndex = `palettePort -q -setCurCell $colorPalette`;
+            
+    string $selection[] = `ls -sl`;
+    
+    for ($joint in $selection) {
+        print ($joint+"\n");
+        
+        string $name = `substitute $toRemove $joint ""`;
+        string $name = ($prefix+$name+$suffix);
+        
+        $ctrl = `circle -nr 1 0 0 -sw 360 -r $radius -d 3 -ut 0 -tol 0.01 -s 8 -ch 1 -name ($name+"_CTRL") `;
+    
+        
+        string $ctrlPos = `group -name ($name+"_CTRL_POS") $ctrl`;
+        string $ctrlGrp = `group -name ($name+"_CTRL_GRP") $ctrlPos`; 
+        
+        
+        select $joint;
+        select -add $ctrlGrp;
+        
+        doCreateParentConstraintArgList 1 { "0","0","0","0","0","0","0","1","","1" };
+        delete `listRelatives -type parentConstraint $ctrlGrp`;
+        
+        select $ctrl;
+        select -add $joint;
+        doCreateParentConstraintArgList 1 { "0","0","0","0","0","0","0","1","","1" };
+                
+        setAttr ($ctrl[0]+".overrideEnabled") 1;
+        setAttr ($ctrl[0] + ".overrideColor") $colorIndex;
+        
+    }
+}
+
+
+global proc createControllerUI( ) {
+        
+    if (`window -exists createCtrlWindow`) deleteUI createCtrlWindow;
+    window -title "createControllers" -widthHeight 200 520 createCtrlWindow;
+    if (`windowPref -exists createCtrlWindow`) windowPref -remove createCtrlWindow;
+        string $mainLayout = `columnLayout -columnAttach "both" 5 -rowSpacing 8 -columnWidth 200`;
+        
+        text -label "create controller for selected joints";
+        
+        separator;
+        
+        columnLayout;
+            text -label "string to remove from joints names :" -rs true -align "left" -height 15;
+            global string $toRemoveField;
+            $toRemoveField = `textField -height 18 -width 185`;
+            text -label "suffix :" -rs true -align "left" -height 15;
+            global string $suffixField;
+            $suffixField = `textField -height 18 -width 185`;
+            text -label "prefix :" -rs true -align "left" -height 15;
+            global string $prefixField;
+            $prefixField = `textField -height 18 -width 185`;
+        setParent $mainLayout;
+                    
+        separator;
+        
+        text -label "Controller size :" -align "left";
+        global string $sizeSlider;    
+        $sizeSlider = `floatSliderGrp -min -0 -max 30 -value 2 -step 0 -field true`;
+               
+        separator;
+    
+        text -label "Controller color :" -align "left";
+        
+        global string $colorPalette;
+        $colorPalette = `palettePort -dimensions 8 4 -transparent 0 -width (40) -height (50) -topDown 1 -colorEditable 0`;
+        
+        for ($index = 1; $index < 32; ++$index) {
+            float $colorComponent[] = `colorIndex -q $index`;
+            palettePort -e 
+                        -rgbValue $index $colorComponent[0] $colorComponent[1] $colorComponent[2]
+                        $colorPalette;
+        }
+                
+        separator;
+        
+        radioCollection ;
+        text -l "shape : " -align left ;
+        rowLayout -numberOfColumns 4;// -columnWidth3 120 120 120 -columnAlign3 "center" "center" "center";
+            radioButton -rs true -label "square";
+            radioButton -rs true -label "circle";
+            radioButton -rs true -label "hexagon";
+        setParent $mainLayout;
+        
+        separator;
+        
+        radioCollection ;
+        rowLayout -numberOfColumns 4;// -columnWidth3 120 120 120 -columnAlign3 "center" "center" "center";
+            text -l "joint axis : " ;
+            radioButton -rs true -label "X";
+            radioButton -rs true -label "Y";
+            radioButton -rs true -label "Z";
+        setParent $mainLayout;
+        
+        separator;
+        checkBox -label "Constraint bone to Controller" defaultcheck;
+        separator;
+                
+        text -label "";     
+        button -bgc 0.1 1.0 0.8 -label "GO !" -command "createController";
+        
+    showWindow createCtrlWindow;
+};
+
+createControllerUI;

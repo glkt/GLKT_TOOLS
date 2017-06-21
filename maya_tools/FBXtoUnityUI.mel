@@ -1,0 +1,94 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc Exporter( ) {
+    
+    global string $path;
+    global string $prefix;
+    global string $suffix;
+                
+    global string $pathTextField;
+    $path = `textField -q -tx $pathTextField`;
+    string $realPath = ($path+"/");
+    
+    global string $prefixTextField;
+    $prefix = `textField -q -tx $prefixTextField`;
+    
+    global string $suffixTextField;
+    $suffix = `textField -q -tx $suffixTextField`;
+    
+    string $selection[] = `ls -sl`;     
+     
+    if ($path != "/"){     
+        for ($object in $selection){                  
+            select -r $object;             
+            file -force -options "v=0;" -typ "FBX export" -pr -es ($realPath + $prefix + $object + $suffix + ".fbx"); 
+            print ($object + " exported succesfully !\n");
+        }
+        print (">>>> Everything is exported <<<<");        
+    }else{
+        error ("please choose an output directory");
+    }    
+};
+
+// choose folder via explorer
+
+global proc chooseFolder (){
+    
+    global string $path;
+   
+   	string $chosenFolder[] = `fileDialog2 -okc "Select folder" -fm 3`;
+	
+	global string $pathTextField;
+	
+	$path = $chosenFolder[0];
+	
+	textField -edit -text $chosenFolder[0] $pathTextField;
+	
+}
+
+// MWindow procedure
+
+global proc OBJExporterUI( ) {
+        
+    // Window stuff
+    
+    global string $path;
+    global string $prefix;
+    global string $suffix;
+    
+    if (`window -exists FBXexporterWindow`) deleteUI FBXexporterWindow;
+    window -title "FBX to UNITY" -widthHeight 400 130 FBXexporterWindow;
+    if (`windowPref -exists FBXexporterWindow`) windowPref -remove FBXexporterWindow;
+        
+        columnLayout -columnAttach "both" 5 -rowSpacing 8 -columnWidth 400;
+        
+        text -label "" -h 2;
+                
+        rowLayout -numberOfColumns 2 -width 400;	
+        	global string $pathTextField;
+            $pathTextField = `textField -width 365 -text $path`;
+        	iconTextButton -style "iconAndTextVertical" -align "right" -command "chooseFolder" -image1 "fileOpen.xpm" -height 20;
+    	setParent ..;
+                    
+        separator-style "in" ;
+          
+        rowLayout -numberOfColumns 4 -width 400;	
+        	text -label "prefix :" -align "left";
+            global string $prefixTextField ;
+            $prefixTextField = `textField -w 145 -tx $prefix`;
+            text -label "suffix :" -align "left";
+            global string $suffixTextField;
+            $suffixTextField = `textField -w 145 -tx $suffix`;
+        setParent ..;
+        
+        separator-style "in" ;
+          
+        button -bgc 0.0 0.5 0.5 -label "EXPORT !" -command "Exporter" -height 30;
+    
+    showWindow FBXexporterWindow;
+};
+
+// Run the main procedure
+     
+OBJExporterUI;

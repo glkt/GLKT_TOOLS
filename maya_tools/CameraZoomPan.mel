@@ -1,0 +1,101 @@
+// GLKT - Benjamin Vedrenne.
+// MIT License
+
+global proc resetCam() {
+       
+   global string $camName;
+   global float $focalOrigin;
+       
+    //reset values
+    floatSlider -edit -v 1 zoomSlider; 
+    floatSlider -edit -v 0 Vslider; 
+    floatSlider -edit -v 0 Hslider; 
+    
+    print $camName;
+    
+    // reset CAM
+    setAttr ($camName+".focalLength") $focalOrigin;
+    setAttr ($camName+".horizontalFilmOffset") 0;
+    setAttr ($camName+".verticalFilmOffset") 0;
+}
+
+
+
+global proc getPanel() {
+    
+    
+    global string $camName;
+    global float $focalOrigin;
+    
+    if ( $camName !=  "") {resetCam;};
+   
+    // get CAM
+    string $currentPanel = `getPanel -withFocus`;
+    string $panelType = `getPanel -typeOf $currentPanel`;
+    if ( $panelType !=  "modelPanel") {
+        print ("Active panel is "+$currentPanel+"\n");
+        print ("This panel type is "+$panelType+"\n");
+    }else{
+        $camName =`modelPanel -q -camera $currentPanel`;
+        $focalOrigin = getAttr ($camName+".focalLength");
+        print $camName;
+    }
+}
+
+global proc updateCam() {
+
+    global string $camName;
+    global float $focalOrigin;
+    
+    float $focal = `floatSlider -q -v zoomSlider`; 
+    float $Y = `floatSlider -q -v Vslider`; 
+    float $X = `floatSlider -q -v Hslider`; 
+    
+    $focal = pow(7,$focal)/7;
+    float $focal = clamp(2.5,3499,($focalOrigin * $focal));
+        
+    // reset CAM
+    setAttr ($camName+".focalLength") ($focal);
+    setAttr ($camName+".horizontalFilmOffset") ($X * $focal / $focalOrigin / 2);
+    setAttr ($camName+".verticalFilmOffset") ($Y * $focal / $focalOrigin / 2);
+   
+   
+}
+
+
+global proc panZoomCam( ) {
+
+if (`window -exists panZoomCamWindow`) deleteUI panZoomCamWindow;
+window -title "panZoomCam" -widthHeight 500 140 panZoomCamWindow;
+if (`windowPref -exists panZoomCamWindow`) windowPref -remove panZoomCamWindow;
+    
+    columnLayout ;
+    
+    rowLayout -numberOfColumns 2 -width 500;
+        button -bgc 0.0 0.5 0.5 -label "RESET" -width 245 -command "resetCam";
+        button -bgc 0.0 0.5 0.5 -label "change panel" -width 245 -command "getPanel";
+	setParent ..;
+    
+    
+    frameLayout -bs etchedIn -height 50 -width 495 -l "ZOOM";
+        floatSlider -min -1 -max 3 -v 1 -dc "updateCam" zoomSlider;
+    setParent ..;
+   
+    frameLayout -bs etchedIn -height 60 -width 495 -l "MOVE";
+        rowLayout -numberOfColumns 2 -width 495;
+            text -l "Y : ";
+            floatSlider -min -1 -max 1 -v 0 -width 460 -dc "updateCam" Vslider;
+	    setParent ..;
+	    rowLayout -numberOfColumns 2 -width 495;
+            text -l "X : ";
+            floatSlider -min -1 -max 1 -v 0 -width 460 -dc "updateCam" Hslider;
+	    setParent ..;
+    setParent ..;
+
+
+showWindow panZoomCamWindow;
+};
+
+// Run the main procedure
+     
+panZoomCam;
