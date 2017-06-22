@@ -15,7 +15,7 @@ public class CreatePrefabs : EditorWindow {
 	{
 	    Transform[] transforms = Selection.transforms;
 	    foreach (Transform t in transforms) {
-	        Object prefab = EditorUtility.CreateEmptyPrefab("Assets/Temporary/"+t.gameObject.name+".prefab");
+	        Object prefab = EditorUtility.CreateEmptyPrefab("Assets/"+t.gameObject.name+".prefab");
 	        EditorUtility.ReplacePrefab(t.gameObject, prefab, ReplacePrefabOptions.ConnectToPrefab);
 	    }
 	}
